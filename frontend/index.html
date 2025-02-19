@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Stim2Qpic Converter</title>
+  <style>
+    :root {
+      --primary-color: #2196F3;
+      --primary-dark: #1976D2;
+      --background: #f8f9fa;
+      --surface: #ffffff;
+      --text: #212121;
+      --border: #e0e0e0;
+    }
+
+    body {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 20px;
+      font-family: system-ui, -apple-system, sans-serif;
+      background: var(--background);
+      color: var(--text);
+    }
+    
+    h1 {
+      text-align: center;
+      color: var(--primary-color);
+      font-weight: 300;
+      font-size: 2.5em;
+      margin-bottom: 40px;
+    }
+
+    h2 {
+      font-weight: 500;
+      color: var(--text);
+      margin-bottom: 16px;
+    }
+
+    .container {
+      display: flex;
+      gap: 30px;
+      margin-bottom: 40px;
+    }
+
+    section {
+      flex: 1;
+      background: var(--surface);
+      padding: 24px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    textarea {
+      width: 100%;
+      height: 250px;
+      padding: 16px;
+      box-sizing: border-box;
+      font-family: 'Monaco', 'Consolas', monospace;
+      margin-bottom: 16px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 14px;
+      line-height: 1.4;
+      resize: vertical;
+    }
+
+    textarea:focus {
+      outline: none;
+      border-color: var(--primary-color);
+      box-shadow: 0 0 0 3px rgba(33, 150, 243, 0.1);
+    }
+
+    button {
+      width: 100%;
+      padding: 12px;
+      background: var(--primary-color);
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 16px;
+      font-weight: 500;
+      transition: background-color 0.2s;
+    }
+
+    button:hover {
+      background: var(--primary-dark);
+    }
+
+    #svgResult {
+      margin-top: 40px;
+      text-align: center;
+      padding: 30px;
+      background: var(--surface);
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      min-height: 500px;
+      height: 600px;
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      position: relative;
+    }
+
+    #svgResult svg {
+      width: 300%;
+      height: 300%;
+      /* transform: scale(4); */
+      max-width: 90%;
+      max-height: 90%;
+    }
+
+
+
+    #svgResult:empty {
+      min-height: 200px;
+    }
+
+    #qpicResult {
+      margin-top: 16px;
+      padding: 16px;
+      background: var(--background);
+      border-radius: 6px;
+      font-family: 'Monaco', 'Consolas', monospace;
+      white-space: pre-wrap;
+      font-size: 14px;
+      line-height: 1.4;
+    }
+
+    .error {
+      color: #d32f2f;
+      text-align: center;
+      padding: 16px;
+      background: #ffebee;
+      border-radius: 6px;
+      margin-top: 16px;
+    }
+
+    .footer {
+      margin-top: 40px;
+      text-align: center;
+      color: var(--text);
+      opacity: 0.7;
+      font-size: 14px;
+      border-top: 1px solid var(--border);
+      padding-top: 20px;
+    }
+
+    .footer a {
+      color: var(--primary-color);
+      text-decoration: none;
+    }
+
+    .footer a:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <h1>Stim2Qpic Converter</h1>
+
+  <div class="container">
+    <!-- Stim input section -->
+    <section>
+      <h2>Stim Code</h2>
+      <form id="stimForm">
+        <textarea id="stimInput" placeholder="Enter Stim code"></textarea>
+        <button type="submit">Convert to Qpic</button>
+      </form>
+    </section>
+
+    <!-- Qpic input section -->
+    <section>
+      <h2>&#10216;q|pic&#10217; Code</h2>
+      <form id="qpicForm">
+        <textarea id="qpicInput" placeholder="Enter Qpic code"></textarea>
+        <button type="submit">Convert to SVG</button>
+      </form>
+    </section>
+  </div>
+
+  <!-- SVG output section -->
+  <div id="svgResult"></div>
+
+  <footer class="footer">
+    <p>
+      Made by <a href="https://twitter.com/ShohamJacoby" target="_blank">Shoham Jacoby</a> | 
+      &#10216;q|pic&#10217; by Draper & Kutin | 
+      Stim by Gidney
+    </p>
+  </footer>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      const stimForm = document.getElementById('stimForm');
+      const qpicForm = document.getElementById('qpicForm');
+      const API_URL = 'http://localhost:3000';
+
+      async function checkServer() {
+        try {
+          const response = await fetch(`${API_URL}/api/qpic-to-svg`, {
+            method: 'OPTIONS'
+          });
+          return response.ok;
+        } catch (err) {
+          console.error('Server check failed:', err);
+          return false;
+        }
+      }
+
+      stimForm.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        if (!(await checkServer())) {
+          document.getElementById('qpicResult').textContent = 
+            'Error: Backend server is not running. Please start it with: python backend/app.py';
+          return;
+        }
+        const stimCode = document.getElementById('stimInput').value;
+        try {
+          const response = await fetch(`${API_URL}/api/stim-to-qpic`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ stimCode })
+          });
+          const data = await response.json();
+          document.getElementById('qpicResult').textContent = data.qpicCode || data.error;
+        } catch (err) {
+          console.error('Error details:', err);
+          document.getElementById('qpicResult').textContent = 
+            `Error: ${err.message || 'Failed to connect to backend server'}`;
+        }
+      });
+
+      qpicForm.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        if (!(await checkServer())) {
+          document.getElementById('svgResult').innerHTML = 
+            '<p style="color: red">Error: Backend server is not running. Please start it with: python backend/app.py</p>';
+          return;
+        }
+
+        const qpicCode = document.getElementById('qpicInput').value;
+        document.getElementById('svgResult').innerHTML = 'Converting...';
+        
+        try {
+          const response = await fetch(`${API_URL}/api/qpic-to-svg`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ qpicCode })
+          });
+          
+          if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+          }
+          
+          const data = await response.json();
+          if (data.svgResult) {
+            document.getElementById('svgResult').innerHTML = data.svgResult;
+          } else if (data.error) {
+            throw new Error(data.error);
+          } else {
+            throw new Error('No SVG result received');
+          }
+        } catch (err) {
+          console.error('Error details:', err);
+          document.getElementById('svgResult').innerHTML = 
+            `<p style="color: red">Error: ${err.message}</p>`;
+        }
+      });
+    });
+  </script>
+</body>
+</html>
