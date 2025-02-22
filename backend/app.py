@@ -137,6 +137,11 @@ def invoke_qpic(qpic_code):
             'error': str(e)
         }
 
+@app.route('/check_point')
+def checkPoint():
+    app.logger.info('Server is OK!')
+    return 'Server is OK!'
+
 @app.route('/api/stim-to-qpic', methods=['POST'])
 def stim_to_qpic():
     data = request.get_json()
